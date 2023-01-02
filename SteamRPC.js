@@ -15,7 +15,7 @@ const steamProfileURL = "https://steamcommunity.com/profiles/76561198341593241";
 
 // ONLY needs to be replaced if you use a custom URL in the steamProfileURL variable above. There's no real benefit!
 // You can get one from https://steamcommunity.com/dev/apikey. Use localhost as the domain name.
-const steamWebKey = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+const steamWebKey = "";
 
 // Advanced Configuration Settings
 const pollRate = 20*1000; // Poll Steam Rich Presence every n seconds. You should keep this at or above 20 seconds.
@@ -107,22 +107,25 @@ async function pollSteamPresence(steamUserId, profiles) {
     let res = await fetch(`https://steamcommunity.com/miniprofile/${steamUserId.getSteam3RenderedID().substring(5, 5+9)}/json?appid=undefined`, {headers: {"X-Requested-With": "XMLHttpRequest"}});
     if (res.ok) {
         steamStatus = "connected";
+        gameStatus = "";
         let resJson = await res.json();
-        gameStatus = resJson.in_game.name + " (not supported)";
-        if (resJson.in_game?.logo && resJson.in_game?.rich_presence) {
-            let curr_appid = resJson.in_game.logo.split("/apps/")[1].split("/")[0];
-            let curr_rpc = resJson.in_game.rich_presence;
-            debugLine = "Current Steam RPC Status: " + resJson.in_game.rich_presence;
-            if (profiles.hasOwnProperty(curr_appid)) {
-                let profile = profiles[curr_appid];
-                try {
-                    gameStatus = profile.title;
-                    let translatedDiscordRPC = profile.translateSteamPresence(curr_rpc);
-                    if (typeof translatedDiscordRPC !== "object") throw `Profile returned '${typeof translatedDiscordRPC}' instead of an object.`;
-                    discordRPCClient.user?.setActivity(translatedDiscordRPC);
-                }
-                catch (codeErr) {
-                    throw new Error(`A code error has occured in the game profile for '${profile.title}'!`, {cause: codeErr});
+        if (resJson.in_game) {
+            gameStatus = `${resJson.in_game.name} (not supported)`;
+            if (resJson.in_game?.logo && resJson.in_game?.rich_presence) {
+                let curr_appid = resJson.in_game.logo.split("/apps/")[1].split("/")[0];
+                let curr_rpc = resJson.in_game.rich_presence;
+                debugLine = "Current Steam RPC Status: " + resJson.in_game.rich_presence;
+                if (profiles.hasOwnProperty(curr_appid)) {
+                    let profile = profiles[curr_appid];
+                    try {
+                        gameStatus = profile.title;
+                        let translatedDiscordRPC = profile.translateSteamPresence(curr_rpc);
+                        if (typeof translatedDiscordRPC !== "object") throw `Profile returned '${typeof translatedDiscordRPC}' instead of an object.`;
+                        discordRPCClient.user?.setActivity(translatedDiscordRPC);
+                    }
+                    catch (codeErr) {
+                        throw new Error(`A code error has occured in the game profile for '${profile.title}'!`, {cause: codeErr});
+                    }
                 }
             }
         }
@@ -133,11 +136,6 @@ async function pollSteamPresence(steamUserId, profiles) {
     }
     renderWindow();
 }
-
-process.on('uncaughtException', err => {
-  console.log(`Uncaught Exception: ${err.message}`)
-  process.exit(1)
-})
 
 // =================================================================
 // Start each component
